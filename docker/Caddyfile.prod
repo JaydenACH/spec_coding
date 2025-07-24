@@ -1,0 +1,184 @@
+# Production Caddyfile with SSL
+{
+    # Global options
+    email {$EMAIL}
+    
+    # Security headers
+    servers {
+        protocols h1 h2 h3
+    }
+}
+
+# Main production domain
+{$DOMAIN} {
+    # Security headers
+    header {
+        # HSTS
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        
+        # Content Security Policy
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' wss: ws:; frame-ancestors 'none';"
+        
+        # Other security headers
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), vr=(), accelerometer=(), gyroscope=(), magnetometer=()"
+        
+        # Remove server info
+        -Server
+        -X-Powered-By
+    }
+
+    # API routes
+    handle /api/* {
+        reverse_proxy backend:8000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote}
+            header_up X-Forwarded-For {remote}
+            header_up X-Forwarded-Proto {scheme}
+            
+            # Health check
+            health_uri /api/health/
+            health_interval 30s
+            health_timeout 10s
+        }
+    }
+
+    # WebSocket connections
+    handle /ws/* {
+        reverse_proxy backend:8000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote}
+            header_up X-Forwarded-For {remote}
+            header_up X-Forwarded-Proto {scheme}
+            header_up Connection "Upgrade"
+            header_up Upgrade "websocket"
+        }
+    }
+
+    # Django admin
+    handle /admin/* {
+        reverse_proxy backend:8000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote}
+            header_up X-Forwarded-For {remote}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Static files served by Nginx
+    handle /static/* {
+        reverse_proxy nginx:80
+        
+        # Cache static files for 1 year
+        header Cache-Control "public, max-age=31536000, immutable"
+    }
+
+    # Media files served by Nginx
+    handle /media/* {
+        reverse_proxy nginx:80
+        
+        # Cache media files for 1 week
+        header Cache-Control "public, max-age=604800"
+    }
+
+    # Frontend application
+    handle /* {
+        reverse_proxy frontend:3000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote}
+            header_up X-Forwarded-For {remote}
+            header_up X-Forwarded-Proto {scheme}
+            
+            # Health check
+            health_uri /
+            health_interval 30s
+            health_timeout 10s
+        }
+    }
+
+    # Gzip compression
+    encode {
+        gzip 6
+        minimum_length 1024
+    }
+
+    # Rate limiting
+    rate_limit {
+        zone dynamic {
+            key {remote}
+            events 100
+            window 1m
+        }
+        
+        zone api {
+            key {remote}
+            events 1000
+            window 1h
+        }
+    }
+
+    # Apply rate limits
+    @api path /api/*
+    rate_limit @api api
+
+    rate_limit dynamic
+
+    # Logging
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 100MiB
+            roll_keep 10
+        }
+        format json
+    }
+}
+
+# API subdomain for webhook endpoint
+api.{$DOMAIN} {
+    # API routes only
+    handle /webhooks/* {
+        reverse_proxy backend:8000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote}
+            header_up X-Forwarded-For {remote}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Health check endpoint
+    handle /health {
+        reverse_proxy backend:8000
+    }
+
+    # Rate limiting for webhooks
+    rate_limit {
+        zone webhooks {
+            key {remote}
+            events 1000
+            window 1m
+        }
+    }
+
+    @webhooks path /webhooks/*
+    rate_limit @webhooks webhooks
+
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        -Server
+    }
+
+    # Logging
+    log {
+        output file /var/log/caddy/api-access.log {
+            roll_size 50MiB
+            roll_keep 5
+        }
+        format json
+    }
+} 

@@ -1,0 +1,256 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (Production)
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - ./docker/postgresql.conf:/etc/postgresql/postgresql.conf
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - backend_network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # Redis for caching and sessions (Production)
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+      - ./docker/redis.conf:/etc/redis/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - backend_network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  # Django Backend (Production)
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.prod.Dockerfile
+    restart: always
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - DEBUG=False
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
+      - RESPOND_IO_API_TOKEN=${RESPOND_IO_API_TOKEN}
+      - RESPOND_IO_WEBHOOK_SECRET=${RESPOND_IO_WEBHOOK_SECRET}
+      - SENTRY_DSN=${SENTRY_DSN}
+    volumes:
+      - media_files:/app/media
+      - static_files:/app/staticfiles
+      - ./logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend_network
+      - frontend_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # Celery Worker for background tasks
+  celery_worker:
+    build:
+      context: .
+      dockerfile: docker/backend.prod.Dockerfile
+    restart: always
+    command: celery -A core worker --loglevel=info --concurrency=2
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - DEBUG=False
+      - RESPOND_IO_API_TOKEN=${RESPOND_IO_API_TOKEN}
+    volumes:
+      - media_files:/app/media
+      - ./logs:/app/logs
+    depends_on:
+      - db
+      - redis
+      - backend
+    networks:
+      - backend_network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # Celery Beat for scheduled tasks
+  celery_beat:
+    build:
+      context: .
+      dockerfile: docker/backend.prod.Dockerfile
+    restart: always
+    command: celery -A core beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - DEBUG=False
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - db
+      - redis
+      - backend
+    networks:
+      - backend_network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  # Next.js Frontend (Production)
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.prod.Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL}
+    restart: always
+    environment:
+      - NODE_ENV=production
+    networks:
+      - frontend_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # Caddy Reverse Proxy (Production)
+  caddy:
+    image: caddy:2-alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/Caddyfile.prod:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+      - static_files:/srv/static
+      - media_files:/srv/media
+    environment:
+      - DOMAIN=${DOMAIN}
+      - EMAIL=${EMAIL}
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - frontend_network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  # Nginx for static file serving (Production)
+  nginx:
+    image: nginx:alpine
+    restart: always
+    volumes:
+      - ./docker/nginx.prod.conf:/etc/nginx/nginx.conf
+      - static_files:/usr/share/nginx/html/static
+      - media_files:/usr/share/nginx/html/media
+    networks:
+      - frontend_network
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  # Database backup service
+  db_backup:
+    image: postgres:15-alpine
+    restart: "no"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./backups:/backups
+      - ./docker/backup-script.sh:/backup-script.sh
+    command: /backup-script.sh
+    depends_on:
+      - db
+    networks:
+      - backend_network
+    profiles:
+      - backup
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  media_files:
+    driver: local
+  static_files:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
+
+networks:
+  backend_network:
+    driver: bridge
+    internal: true
+  frontend_network:
+    driver: bridge 
