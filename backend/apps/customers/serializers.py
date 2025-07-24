@@ -5,11 +5,20 @@ Serializers for customer management and assignment.
 from rest_framework import serializers
 from .models import Customer
 from django.contrib.auth import get_user_model
+from drf_spectacular.utils import extend_schema_field
 User = get_user_model()
 
 class CustomerSerializer(serializers.ModelSerializer):
     assigned_user_email = serializers.EmailField(source='assigned_user.email', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    @extend_schema_field(serializers.BooleanField())
+    def is_assigned(self) -> bool:
+        return self.instance.is_assigned
+
+    @extend_schema_field(serializers.CharField())
+    def formatted_phone_number(self) -> str:
+        return self.instance.formatted_phone_number
 
     class Meta:
         model = Customer

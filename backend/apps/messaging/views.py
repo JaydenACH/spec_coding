@@ -6,7 +6,8 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiResponse
-from .models import Message, InternalComment, Conversation
+from .models import Message, InternalComment
+from apps.customers.models import Conversation
 from .serializers import (
     MessageSerializer, MessageSendSerializer, MessageStatusSerializer,
     InternalCommentSerializer, InternalCommentCreateSerializer

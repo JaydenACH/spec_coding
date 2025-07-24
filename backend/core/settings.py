@@ -35,6 +35,7 @@ SECRET_KEY = env('SECRET_KEY')
 DEBUG = env('DEBUG')
 
 ALLOWED_HOSTS = env('ALLOWED_HOSTS')
+print(ALLOWED_HOSTS)
 
 # Application definition
 DJANGO_APPS = [
@@ -53,11 +54,11 @@ THIRD_PARTY_APPS = [
     'django_filters',
     'drf_spectacular',
     'channels',
-    'django_q',
-    'django_health_check',
-    'django_health_check.db',
-    'django_health_check.cache',
-    'django_health_check.storage',
+    # 'django_q',  # Commented out for compatibility
+    # 'django_health_check',
+    # 'django_health_check.db',
+    # 'django_health_check.cache',
+    # 'django_health_check.storage',
 ]
 
 LOCAL_APPS = [
@@ -209,6 +210,10 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
     'SCHEMA_PATH_PREFIX': '/api/',
+    'ENUM_NAME_OVERRIDES': {
+        'Status': 'StatusEnum',
+        'MinimumPriority': 'MinimumPriorityEnum',
+    },
 }
 
 # CORS Configuration
@@ -228,20 +233,19 @@ CHANNEL_LAYERS = {
         },
     },
 }
-
-# Django Q configuration for background tasks
-Q_CLUSTER = {
-    'name': 'respond_io_queue',
-    'workers': 2,
-    'recycle': 500,
-    'timeout': 60,
-    'compress': True,
-    'save_limit': 250,
-    'queue_limit': 500,
-    'cpu_affinity': 1,
-    'label': 'Django Q',
-    'redis': REDIS_URL,
-}
+# Django Q configuration for background tasks (using celery instead)
+# Q_CLUSTER = {
+#     'name': 'respond_io_queue',
+#     'workers': 2,
+#     'recycle': 500,
+#     'timeout': 60,
+#     'compress': True,
+#     'save_limit': 250,
+#     'queue_limit': 500,
+#     'cpu_affinity': 1,
+#     'label': 'Django Q',
+#     'redis': REDIS_URL,
+# }
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/

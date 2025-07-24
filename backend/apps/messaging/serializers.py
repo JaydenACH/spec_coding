@@ -5,10 +5,31 @@ Serializers for messaging and internal comments.
 from rest_framework import serializers
 from .models import Message, InternalComment
 from apps.customers.models import Conversation
+from drf_spectacular.utils import extend_schema_field
 
 class MessageSerializer(serializers.ModelSerializer):
     sender_name = serializers.CharField(read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    @extend_schema_field(serializers.BooleanField())
+    def has_media(self) -> bool:
+        return self.instance.has_media
+
+    @extend_schema_field(serializers.BooleanField())
+    def is_from_customer(self) -> bool:
+        return self.instance.is_from_customer
+
+    @extend_schema_field(serializers.BooleanField())
+    def is_from_user(self) -> bool:
+        return self.instance.is_from_user
+
+    @extend_schema_field(serializers.BooleanField())
+    def is_location_message(self) -> bool:
+        return self.instance.is_location_message
+
+    @extend_schema_field(serializers.BooleanField())
+    def is_contact_message(self) -> bool:
+        return self.instance.is_contact_message
 
     class Meta:
         model = Message
@@ -44,6 +65,19 @@ class MessageStatusSerializer(serializers.ModelSerializer):
 
 class InternalCommentSerializer(serializers.ModelSerializer):
     author_name = serializers.CharField(source='author.full_name', read_only=True)
+
+    @extend_schema_field(serializers.BooleanField())
+    def is_reply(self) -> bool:
+        return self.instance.is_reply
+
+    @extend_schema_field(serializers.BooleanField())
+    def has_mentions(self) -> bool:
+        return self.instance.has_mentions
+
+    @extend_schema_field(serializers.BooleanField())
+    def is_high_priority(self) -> bool:
+        return self.instance.is_high_priority
+
     class Meta:
         model = InternalComment
         fields = [

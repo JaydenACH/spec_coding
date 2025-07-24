@@ -6,7 +6,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from drf_spectacular.utils import extend_schema
-from .models import Message, Conversation, Customer
+from .models import Message
+from apps.customers.models import Conversation, Customer
 from .serializers import MessageSerializer
 from django.utils import timezone
 from django.conf import settings

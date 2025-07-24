@@ -22,8 +22,8 @@ api_patterns = [
     path('docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     
-    # Health check
-    path('health/', include('health_check.urls')),
+    # Health check (commented out for MVP)
+    # path('health/', include('health_check.urls')),
     
     # Authentication endpoints
     path('auth/', include('apps.authentication.urls')),

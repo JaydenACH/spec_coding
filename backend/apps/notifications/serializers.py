@@ -4,6 +4,7 @@ Serializers for notification models.
 
 from rest_framework import serializers
 from .models import Notification, NotificationPreference
+from drf_spectacular.utils import extend_schema_field
 
 class NotificationSerializer(serializers.ModelSerializer):
     """
@@ -13,6 +14,18 @@ class NotificationSerializer(serializers.ModelSerializer):
     sender_name = serializers.CharField(source='sender.full_name', read_only=True)
     priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    @extend_schema_field(serializers.BooleanField())
+    def is_expired(self) -> bool:
+        return self.instance.is_expired
+
+    @extend_schema_field(serializers.BooleanField())
+    def is_high_priority(self) -> bool:
+        return self.instance.is_high_priority
+
+    @extend_schema_field(serializers.BooleanField())
+    def is_scheduled(self) -> bool:
+        return self.instance.is_scheduled
 
     class Meta:
         model = Notification
@@ -38,6 +51,14 @@ class NotificationPreferenceSerializer(serializers.ModelSerializer):
     delivery_method_display = serializers.CharField(source='get_delivery_method_display', read_only=True)
     minimum_priority_display = serializers.CharField(source='get_minimum_priority_display', read_only=True)
     digest_frequency_display = serializers.CharField(source='get_digest_frequency_display', read_only=True)
+
+    @extend_schema_field(serializers.BooleanField())
+    def is_in_quiet_hours(self) -> bool:
+        return self.instance.is_in_quiet_hours
+
+    @extend_schema_field(serializers.BooleanField())
+    def is_weekend_and_disabled(self) -> bool:
+        return self.instance.is_weekend_and_disabled
 
     class Meta:
         model = NotificationPreference

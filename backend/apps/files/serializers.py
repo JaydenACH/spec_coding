@@ -4,10 +4,36 @@ Serializers for file upload/download.
 
 from rest_framework import serializers
 from .models import File
+from drf_spectacular.utils import extend_schema_field
 
 class FileSerializer(serializers.ModelSerializer):
     uploaded_by_email = serializers.EmailField(source='uploaded_by.email', read_only=True)
     file_size_human = serializers.CharField(read_only=True)
+
+    @extend_schema_field(serializers.BooleanField())
+    def is_image(self) -> bool:
+        return self.instance.is_image
+
+    @extend_schema_field(serializers.BooleanField())
+    def is_document(self) -> bool:
+        return self.instance.is_document
+
+    @extend_schema_field(serializers.BooleanField())
+    def is_safe(self) -> bool:
+        return self.instance.is_safe
+
+    @extend_schema_field(serializers.BooleanField())
+    def is_expired(self) -> bool:
+        return self.instance.is_expired
+
+    @extend_schema_field(serializers.CharField())
+    def download_url(self) -> str:
+        return self.instance.download_url
+
+    @extend_schema_field(serializers.CharField())
+    def thumbnail_url(self) -> str:
+        return self.instance.thumbnail_url
+
     class Meta:
         model = File
         fields = [
