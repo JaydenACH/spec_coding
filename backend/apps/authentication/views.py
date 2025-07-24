@@ -23,6 +23,15 @@ from .serializers import (
     UserCreateSerializer,
     LoginAttemptSerializer
 )
+from .permissions import (
+    IsSystemAdmin,
+    IsManagerOrSystemAdmin,
+    IsOwnerOrSystemAdmin,
+    IsAssignedUserOrManager,
+    CanViewCustomers,
+    CanAssignCustomers,
+    CanManageUsers
+)
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -133,6 +142,10 @@ def logout_view(request):
         # Django logout
         logout(request)
         
+        # Invalidate all sessions for this user if requested
+        if request.data.get('all_sessions'):
+            UserSession.objects.filter(user=request.user, is_active=True).update(is_active=False)
+        
         return Response(
             {'message': _('Logout successful')},
             status=status.HTTP_200_OK
@@ -168,6 +181,17 @@ class UserProfileViewSet(GenericViewSet, RetrieveModelMixin, UpdateModelMixin):
         elif self.action == 'change_password':
             return PasswordChangeSerializer
         return UserSerializer
+    
+    def dispatch(self, request, *args, **kwargs):
+        # Enforce first-time password change requirement
+        if (
+            request.user.is_authenticated and
+            getattr(request.user, 'password_change_required', False) and
+            self.action != 'change_password'
+        ):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied(_('You must change your password before continuing.'))
+        return super().dispatch(request, *args, **kwargs)
     
     @extend_schema(
         summary="Get user profile",
@@ -220,7 +244,7 @@ class UserManagementViewSet(ModelViewSet):
     ViewSet for user management (admin only).
     """
     queryset = User.objects.all()
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsSystemAdmin]
     
     def get_serializer_class(self):
         """Return appropriate serializer based on action."""
@@ -230,9 +254,8 @@ class UserManagementViewSet(ModelViewSet):
     
     def get_permissions(self):
         """Only system admins can manage users."""
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            permission_classes = [permissions.IsAuthenticated]
-            # Add custom permission check in perform_* methods
+        if self.action in ['create', 'update', 'partial_update', 'destroy', 'reset_password']:
+            permission_classes = [IsSystemAdmin]
         else:
             permission_classes = [permissions.IsAuthenticated]
         return [permission() for permission in permission_classes]
@@ -327,7 +350,7 @@ class LoginAttemptViewSet(GenericViewSet, ListModelMixin):
     """
     queryset = LoginAttempt.objects.all()
     serializer_class = LoginAttemptSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsSystemAdmin]
     
     def get_queryset(self):
         """Filter login attempts based on user role."""

@@ -44,7 +44,20 @@ class JWTAuthenticationMiddleware(MiddlewareMixin):
             auth_result = self.jwt_authenticator.authenticate(request)
             if auth_result:
                 request.user, request.auth = auth_result
-                
+                # Enforce first-time password change requirement
+                if (
+                    request.user.is_authenticated and
+                    getattr(request.user, 'password_change_required', False)
+                ):
+                    # Allow only password change endpoint
+                    if not (
+                        request.path.startswith('/api/auth/profile/change-password/') or
+                        request.path.startswith('/admin/')
+                    ):
+                        return JsonResponse(
+                            {'error': 'Password change required', 'detail': 'You must change your password before continuing.'},
+                            status=403
+                        )
                 # Update user session activity
                 if hasattr(request, 'session') and request.session.session_key:
                     UserSession.objects.filter(
@@ -117,6 +130,10 @@ class SessionTimeoutMiddleware(MiddlewareMixin):
                         # Session has timed out
                         user_session.is_active = False
                         user_session.save()
+                        
+                        # Logout user and clear session
+                        from django.contrib.auth import logout
+                        logout(request)
                         
                         # For API requests, return JSON error
                         if request.path.startswith('/api/'):
