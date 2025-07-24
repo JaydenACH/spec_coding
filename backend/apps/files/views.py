@@ -10,6 +10,7 @@ from .models import File
 from .serializers import FileSerializer, FileUploadSerializer, FileMetadataSerializer
 from apps.authentication.permissions import IsSystemAdmin, IsManagerOrSystemAdmin, IsAssignedUserOrManager
 from django.utils.translation import gettext_lazy as _
+from apps.messaging.respondio_service import upload_file_to_respondio, send_file_to_customer_respondio
 
 class FileViewSet(viewsets.ModelViewSet):
     """
@@ -36,7 +37,35 @@ class FileViewSet(viewsets.ModelViewSet):
         serializer = FileUploadSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         file_obj = serializer.save(uploaded_by=request.user)
+        
+        # Upload to Respond.IO (simplified for MVP)
+        success, result = upload_file_to_respondio(file_obj.file_path)
+        if success:
+            file_obj.external_url = result.get('file_url')
+            file_obj.save(update_fields=['external_url'])
+        
         return Response(FileSerializer(file_obj).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(
+        summary="Send file to customer via Respond.IO",
+        description="Send an uploaded file to a customer using Respond.IO API."
+    )
+    @action(detail=True, methods=['post'])
+    def send_to_customer(self, request, pk=None):
+        file_obj = self.get_object()
+        phone_number = request.data.get('phone_number')
+        
+        if not phone_number:
+            return Response({'error': 'phone_number is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Send file to customer via Respond.IO
+        file_url = file_obj.external_url or file_obj.download_url
+        success, result = send_file_to_customer_respondio(phone_number, file_url)
+        
+        if success:
+            return Response({'message': 'File sent to customer successfully', 'respondio': result}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': result}, status=status.HTTP_400_BAD_REQUEST)
 
     @extend_schema(
         summary="Download file",

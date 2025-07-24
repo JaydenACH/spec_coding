@@ -13,7 +13,10 @@ from .serializers import (
 )
 from apps.authentication.permissions import IsSystemAdmin, IsManagerOrSystemAdmin, IsAssignedUserOrManager
 from django.utils.translation import gettext_lazy as _
-from .respondio_service import send_respondio_message
+from .respondio_service import send_respondio_message, create_internal_comment_respondio
+import logging
+
+logger = logging.getLogger(__name__)
 
 class MessageViewSet(viewsets.ModelViewSet):
     """
@@ -99,6 +102,28 @@ class InternalCommentViewSet(viewsets.ModelViewSet):
             return qs
         else:
             return qs.filter(conversation__assigned_user=user)
+
+    def perform_create(self, serializer):
+        """Create internal comment and sync with Respond.IO if applicable."""
+        comment = serializer.save(author=self.request.user)
+        
+        # Extract tagged users and sync with Respond.IO
+        if comment.has_mentions:
+            customer = comment.conversation.customer
+            phone_number = customer.formatted_phone_number
+            
+            # Get tagged user IDs for Respond.IO
+            tagged_user_ids = []
+            # This would be extracted from the comment content parsing @username mentions
+            # For MVP, we'll use a simple approach
+            
+            success, result = create_internal_comment_respondio(
+                phone_number, 
+                comment.content, 
+                tagged_user_ids
+            )
+            if not success:
+                logger.warning(f'Failed to sync internal comment with Respond.IO: {result}')
 
     @extend_schema(
         summary="Tag users in comment",

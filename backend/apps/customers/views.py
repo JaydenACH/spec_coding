@@ -10,6 +10,10 @@ from .models import Customer
 from .serializers import CustomerSerializer, CustomerAssignmentSerializer, AssignmentHistorySerializer
 from apps.authentication.permissions import IsSystemAdmin, IsManagerOrSystemAdmin
 from django.utils.translation import gettext_lazy as _
+from apps.messaging.respondio_service import assign_customer_respondio, unassign_customer_respondio
+import logging
+
+logger = logging.getLogger(__name__)
 
 class CustomerViewSet(viewsets.ModelViewSet):
     """
@@ -36,7 +40,15 @@ class CustomerViewSet(viewsets.ModelViewSet):
         serializer = CustomerAssignmentSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         assigned_user = serializer.validated_data['assigned_user']
+        
+        # Assign in local database
         customer.assign_to_user(assigned_user, assigned_by=request.user)
+        
+        # Sync with Respond.IO API
+        success, result = assign_customer_respondio(customer.formatted_phone_number, assigned_user.email)
+        if not success:
+            logger.warning(f'Failed to sync assignment with Respond.IO: {result}')
+        
         return Response({'message': _('Customer assigned successfully')}, status=status.HTTP_200_OK)
 
     @extend_schema(
@@ -46,7 +58,15 @@ class CustomerViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsManagerOrSystemAdmin])
     def unassign(self, request, pk=None):
         customer = self.get_object()
+        
+        # Unassign in local database
         customer.unassign(unassigned_by=request.user)
+        
+        # Sync with Respond.IO API
+        success, result = unassign_customer_respondio(customer.formatted_phone_number)
+        if not success:
+            logger.warning(f'Failed to sync unassignment with Respond.IO: {result}')
+        
         return Response({'message': _('Customer unassigned successfully')}, status=status.HTTP_200_OK)
 
     @extend_schema(
