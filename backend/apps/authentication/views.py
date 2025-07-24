@@ -241,73 +241,87 @@ class UserProfileViewSet(GenericViewSet, RetrieveModelMixin, UpdateModelMixin):
 
 class UserManagementViewSet(ModelViewSet):
     """
-    ViewSet for user management (admin only).
+    API endpoints for user management (CRUD operations).
+    - List: System Admin sees all users, Manager sees basic users/managers, Basic User sees self only
+    - Retrieve: Same as list
+    - Create: System Admin only
+    - Update/Partial Update: System Admin only
+    - Destroy: System Admin only (soft delete)
+    - Reset Password: System Admin only
     """
     queryset = User.objects.all()
     permission_classes = [IsSystemAdmin]
-    
+
     def get_serializer_class(self):
-        """Return appropriate serializer based on action."""
         if self.action == 'create':
             return UserCreateSerializer
         return UserSerializer
-    
+
     def get_permissions(self):
-        """Only system admins can manage users."""
+        # Only system admins can create, update, delete, reset password
         if self.action in ['create', 'update', 'partial_update', 'destroy', 'reset_password']:
             permission_classes = [IsSystemAdmin]
         else:
             permission_classes = [permissions.IsAuthenticated]
         return [permission() for permission in permission_classes]
-    
-    def perform_create(self, serializer):
-        """Create user (admin only)."""
-        if not self.request.user.is_system_admin:
-            from rest_framework.exceptions import PermissionDenied
-            raise PermissionDenied(_('Only system administrators can create users.'))
-        serializer.save()
-    
-    def perform_update(self, serializer):
-        """Update user (admin only)."""
-        if not self.request.user.is_system_admin:
-            from rest_framework.exceptions import PermissionDenied
-            raise PermissionDenied(_('Only system administrators can update users.'))
-        serializer.save()
-    
-    def perform_destroy(self, instance):
-        """Soft delete user (admin only)."""
-        if not self.request.user.is_system_admin:
-            from rest_framework.exceptions import PermissionDenied
-            raise PermissionDenied(_('Only system administrators can delete users.'))
-        
-        # Soft delete by deactivating
-        instance.is_active = False
-        instance.save(update_fields=['is_active'])
-    
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_system_admin:
+            return User.objects.all()
+        elif user.is_manager:
+            return User.objects.filter(role__in=[User.Role.BASIC_USER, User.Role.MANAGER])
+        else:
+            return User.objects.filter(id=user.id)
+
     @extend_schema(
-        summary="List all users",
-        description="Get list of all users (requires appropriate permissions)"
+        summary="List users",
+        description="List users based on role permissions. System Admin sees all, Manager sees basic users/managers, Basic User sees self only."
     )
     def list(self, request, *args, **kwargs):
-        """List users based on role permissions."""
-        if request.user.is_system_admin:
-            # System admins can see all users
-            queryset = self.get_queryset()
-        elif request.user.is_manager:
-            # Managers can see basic users and other managers
-            queryset = self.get_queryset().filter(
-                role__in=[User.Role.BASIC_USER, User.Role.MANAGER]
-            )
-        else:
-            # Basic users can only see themselves
-            queryset = self.get_queryset().filter(id=request.user.id)
-        
-        self.queryset = queryset
         return super().list(request, *args, **kwargs)
-    
+
+    @extend_schema(
+        summary="Retrieve user",
+        description="Retrieve user details based on role permissions."
+    )
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Create user",
+        description="Create a new user (System Admin only)."
+    )
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Update user",
+        description="Update user details (System Admin only)."
+    )
+    def update(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Partially update user",
+        description="Partially update user details (System Admin only)."
+    )
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Deactivate (soft delete) user",
+        description="Deactivate a user account (System Admin only)."
+    )
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.is_active = False
+        instance.save(update_fields=['is_active'])
+        return Response({'message': _('User deactivated')}, status=status.HTTP_204_NO_CONTENT)
+
     @extend_schema(
         summary="Reset user password",
-        description="Reset user password (admin only)",
+        description="Reset user password to a temporary password (System Admin only).",
         responses={
             200: OpenApiResponse(description="Password reset successful"),
             403: OpenApiResponse(description="Permission denied")
@@ -315,33 +329,18 @@ class UserManagementViewSet(ModelViewSet):
     )
     @action(detail=True, methods=['post'])
     def reset_password(self, request, pk=None):
-        """Reset user password (admin only)."""
         if not request.user.is_system_admin:
-            return Response(
-                {'error': _('Permission denied')},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
+            return Response({'error': _('Permission denied')}, status=status.HTTP_403_FORBIDDEN)
         user = self.get_object()
-        
-        # Generate temporary password
         import secrets
         import string
         alphabet = string.ascii_letters + string.digits
         temp_password = ''.join(secrets.choice(alphabet) for i in range(12))
-        
         user.set_password(temp_password)
         user.password_change_required = True
         user.password_last_changed = timezone.now()
         user.save(update_fields=['password', 'password_change_required', 'password_last_changed'])
-        
-        return Response(
-            {
-                'message': _('Password reset successfully'),
-                'temporary_password': temp_password
-            },
-            status=status.HTTP_200_OK
-        )
+        return Response({'message': _('Password reset successfully'), 'temporary_password': temp_password}, status=status.HTTP_200_OK)
 
 
 class LoginAttemptViewSet(GenericViewSet, ListModelMixin):
