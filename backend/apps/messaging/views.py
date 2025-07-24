@@ -13,6 +13,7 @@ from .serializers import (
 )
 from apps.authentication.permissions import IsSystemAdmin, IsManagerOrSystemAdmin, IsAssignedUserOrManager
 from django.utils.translation import gettext_lazy as _
+from .respondio_service import send_respondio_message
 
 class MessageViewSet(viewsets.ModelViewSet):
     """
@@ -54,6 +55,27 @@ class MessageViewSet(viewsets.ModelViewSet):
         message = self.get_object()
         serializer = MessageStatusSerializer(message)
         return Response(serializer.data)
+
+    @extend_schema(
+        summary="Send message to customer via Respond.IO",
+        description="Send a message (text or file) to a customer using Respond.IO API."
+    )
+    @action(detail=False, methods=['post'], url_path='send-respondio')
+    def send_respondio(self, request):
+        """
+        Send a message to a customer via Respond.IO API.
+        """
+        phone_number = request.data.get('phone_number')
+        message_type = request.data.get('message_type')
+        content = request.data.get('content')
+        file_url = request.data.get('file_url')
+        if not phone_number or not message_type:
+            return Response({'error': 'phone_number and message_type are required'}, status=status.HTTP_400_BAD_REQUEST)
+        success, result = send_respondio_message(phone_number, message_type, content, file_url)
+        if success:
+            return Response({'message': 'Message sent successfully', 'respondio': result}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': result}, status=status.HTTP_400_BAD_REQUEST)
 
 class InternalCommentViewSet(viewsets.ModelViewSet):
     """
