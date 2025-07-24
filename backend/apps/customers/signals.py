@@ -15,16 +15,10 @@ def handle_customer_assignment(sender, instance, created, **kwargs):
         # Import here to avoid circular imports
         from apps.notifications.models import Notification
         
-        # Create assignment notification
-        Notification.create_notification(
-            recipient=instance.assigned_user,
-            notification_type=Notification.NotificationType.ASSIGNMENT,
-            title=f"Customer Assigned: {instance.display_name}",
-            message=f"You have been assigned to customer {instance.display_name} ({instance.formatted_phone_number})",
-            content_object=instance,
-            action_url=f"/customers/{instance.id}/",
-            priority=Notification.Priority.NORMAL
-        )
+        # Create and broadcast assignment notification
+        from apps.notifications.utils import broadcast_assignment_notification
+        assigned_by = getattr(instance, '_assigned_by', None)
+        broadcast_assignment_notification(instance, instance.assigned_user, assigned_by)
 
 
 @receiver(post_save, sender=Conversation)

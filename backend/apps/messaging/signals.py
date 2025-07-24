@@ -22,20 +22,10 @@ def handle_new_message(sender, instance, created, **kwargs):
             conversation.customer.last_message_date = instance.created_at
             conversation.customer.save(update_fields=['last_message_date'])
         
-        # Create notification for assigned user if message is from customer
+        # Create and broadcast notification for assigned user if message is from customer
         if instance.is_from_customer and conversation.assigned_user:
-            from apps.notifications.models import Notification
-            
-            Notification.create_notification(
-                recipient=conversation.assigned_user,
-                notification_type=Notification.NotificationType.MESSAGE,
-                title=f"New message from {conversation.customer.display_name}",
-                message=instance.content[:100] + ('...' if len(instance.content) > 100 else ''),
-                content_object=instance,
-                action_url=f"/conversations/{conversation.id}/",
-                priority=Notification.Priority.NORMAL,
-                sender=instance.sender_customer if instance.sender_customer else None
-            )
+            from apps.notifications.utils import broadcast_message_notification
+            broadcast_message_notification(instance, conversation.assigned_user)
 
 
 @receiver(post_save, sender=InternalComment)
@@ -95,17 +85,9 @@ def handle_comment_mention(sender, instance, created, **kwargs):
     if created:
         from apps.notifications.models import Notification
         
-        # Create mention notification
-        Notification.create_notification(
-            recipient=instance.mentioned_user,
-            notification_type=Notification.NotificationType.MENTION,
-            title=f"You were mentioned by {instance.mentioned_by.full_name}",
-            message=f"In comment: {instance.comment.content[:100]}{'...' if len(instance.comment.content) > 100 else ''}",
-            content_object=instance.comment,
-            action_url=f"/conversations/{instance.comment.conversation.id}/#comment-{instance.comment.id}",
-            priority=Notification.Priority.HIGH,
-            sender=instance.mentioned_by
-        )
+        # Create and broadcast mention notification
+        from apps.notifications.utils import broadcast_tag_notification
+        broadcast_tag_notification(instance.comment, instance.mentioned_user, instance.mentioned_by)
         
         # Mark notification as sent
         instance.notification_sent = True
