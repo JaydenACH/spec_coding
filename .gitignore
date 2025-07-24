@@ -165,4 +165,58 @@ playwright-report/
 .sentryclirc
 
 # Local development
-.local/ 
+.local/
+
+# CI/CD specific
+coverage/
+coverage-report/
+test-report/
+security-reports/
+
+# Release artifacts
+release-package/
+*.tar.gz
+*.zip
+
+# Deployment specific
+deployment-logs/
+migration-backups/
+data-backups/
+
+# Development tools
+.python-version
+.nvmrc
+
+# Documentation build
+docs/_build/
+site/
+
+# Profiling
+profile_output/
+*.prof
+
+# Temporary test files
+*.tmp
+*.temp
+
+# Security scanning results
+trivy-results.sarif
+safety-report.json
+audit-report.json
+
+# Local configuration overrides
+docker-compose.override.yml
+local.yml
+settings_local.py
+
+# Generated files
+schema.yml
+openapi.json
+
+# Vendor directories
+vendor/
+third_party/
+
+# Build artifacts
+build-output/
+dist-output/ 

@@ -1,0 +1,273 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    
+    outputs:
+      release-id: ${{ steps.create-release.outputs.id }}
+      upload-url: ${{ steps.create-release.outputs.upload_url }}
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Get the latest two tags
+        CURRENT_TAG=${GITHUB_REF#refs/tags/}
+        PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+        
+        echo "Current tag: $CURRENT_TAG"
+        echo "Previous tag: $PREVIOUS_TAG"
+        
+        # Generate changelog
+        if [ -n "$PREVIOUS_TAG" ]; then
+          CHANGELOG=$(git log --pretty=format:"- %s (%h)" $PREVIOUS_TAG..$CURRENT_TAG)
+        else
+          CHANGELOG=$(git log --pretty=format:"- %s (%h)")
+        fi
+        
+        echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+        echo "$CHANGELOG" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+    
+    - name: Create Release
+      id: create-release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        body: |
+          ## Changes in this Release
+          
+          ${{ steps.changelog.outputs.CHANGELOG }}
+          
+          ## Docker Images
+          
+          - Backend: `ghcr.io/${{ github.repository }}/backend:${{ github.ref_name }}`
+          - Frontend: `ghcr.io/${{ github.repository }}/frontend:${{ github.ref_name }}`
+          
+          ## Installation
+          
+          ```bash
+          # Download and run with Docker
+          wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/docker-compose.prod.yml
+          docker-compose -f docker-compose.prod.yml up -d
+          ```
+        draft: false
+        prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+
+  build-and-release-images:
+    runs-on: ubuntu-latest
+    needs: create-release
+    permissions:
+      contents: read
+      packages: write
+    
+    strategy:
+      matrix:
+        include:
+          - component: backend
+            dockerfile: ./docker/backend.prod.Dockerfile
+            context: .
+          - component: frontend
+            dockerfile: ./docker/frontend.prod.Dockerfile
+            context: .
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.component }}
+        tags: |
+          type=ref,event=tag
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ matrix.context }}
+        file: ${{ matrix.dockerfile }}
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL || 'https://api.example.com' }}
+          NEXT_PUBLIC_WS_URL=${{ secrets.NEXT_PUBLIC_WS_URL || 'wss://api.example.com/ws' }}
+
+  upload-release-assets:
+    runs-on: ubuntu-latest
+    needs: create-release
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Create release archive
+      run: |
+        # Create a deployment package
+        mkdir -p release-package
+        
+        # Copy essential deployment files
+        cp docker-compose.prod.yml release-package/
+        cp .env.production.example release-package/.env.example
+        cp Makefile release-package/
+        cp -r docker/ release-package/
+        cp README.md release-package/
+        
+        # Create installation script
+        cat > release-package/install.sh << 'EOF'
+        #!/bin/bash
+        set -e
+        
+        echo "Installing Respond IO Alternate Interface..."
+        
+        # Check if Docker is installed
+        if ! command -v docker &> /dev/null; then
+            echo "Docker is required but not installed. Please install Docker first."
+            exit 1
+        fi
+        
+        # Check if Docker Compose is installed
+        if ! command -v docker-compose &> /dev/null; then
+            echo "Docker Compose is required but not installed. Please install Docker Compose first."
+            exit 1
+        fi
+        
+        # Set up environment
+        if [ ! -f .env.production ]; then
+            cp .env.example .env.production
+            echo "Please edit .env.production with your configuration before running:"
+            echo "docker-compose -f docker-compose.prod.yml up -d"
+        fi
+        
+        echo "Installation package ready!"
+        echo "Next steps:"
+        echo "1. Edit .env.production with your settings"
+        echo "2. Run: docker-compose -f docker-compose.prod.yml up -d"
+        EOF
+        
+        chmod +x release-package/install.sh
+        
+        # Create archive
+        tar -czf respond-io-alternate-${{ github.ref_name }}.tar.gz -C release-package .
+        zip -r respond-io-alternate-${{ github.ref_name }}.zip release-package/
+    
+    - name: Upload tar.gz release asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload-url }}
+        asset_path: ./respond-io-alternate-${{ github.ref_name }}.tar.gz
+        asset_name: respond-io-alternate-${{ github.ref_name }}.tar.gz
+        asset_content_type: application/gzip
+    
+    - name: Upload zip release asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload-url }}
+        asset_path: ./respond-io-alternate-${{ github.ref_name }}.zip
+        asset_name: respond-io-alternate-${{ github.ref_name }}.zip
+        asset_content_type: application/zip
+    
+    - name: Upload docker-compose file
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload-url }}
+        asset_path: ./docker-compose.prod.yml
+        asset_name: docker-compose.prod.yml
+        asset_content_type: text/yaml
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: [create-release, build-and-release-images]
+    if: "!contains(github.ref, 'alpha') && !contains(github.ref, 'beta') && !contains(github.ref, 'rc')"
+    environment: production
+    
+    steps:
+    - name: Deploy to production
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.PRODUCTION_HOST }}
+        username: ${{ secrets.PRODUCTION_USER }}
+        key: ${{ secrets.PRODUCTION_SSH_KEY }}
+        script: |
+          cd /opt/respond-io-alternate
+          
+          # Backup current version
+          docker-compose -f docker-compose.prod.yml exec -T backend python manage.py dumpdata > backup-$(date +%Y%m%d-%H%M%S).json
+          
+          # Pull new images
+          docker-compose -f docker-compose.prod.yml pull
+          
+          # Update containers
+          docker-compose -f docker-compose.prod.yml up -d
+          
+          # Run migrations
+          docker-compose -f docker-compose.prod.yml exec -T backend python manage.py migrate
+          
+          # Collect static files
+          docker-compose -f docker-compose.prod.yml exec -T backend python manage.py collectstatic --noinput
+          
+          # Health check
+          sleep 30
+          curl -f http://localhost/api/health/ || exit 1
+          
+          echo "Deployment completed successfully!"
+
+  notify-release:
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    if: always()
+    
+    steps:
+    - name: Notify success
+      if: needs.deploy-production.result == 'success'
+      run: |
+        echo "🎉 Release ${{ github.ref_name }} deployed successfully!"
+        # Add notification webhook here
+    
+    - name: Notify failure
+      if: needs.deploy-production.result == 'failure'
+      run: |
+        echo "💥 Release ${{ github.ref_name }} deployment failed!"
+        # Add notification webhook here 
