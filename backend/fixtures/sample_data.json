@@ -1,0 +1,329 @@
+[
+  {
+    "model": "authentication.user",
+    "pk": "11111111-1111-1111-1111-111111111111",
+    "fields": {
+      "password": "pbkdf2_sha256$600000$dummy$dummy",
+      "last_login": null,
+      "is_superuser": true,
+      "username": "admin",
+      "first_name": "System",
+      "last_name": "Administrator",
+      "email": "admin@respondio.local",
+      "is_staff": true,
+      "is_active": true,
+      "date_joined": "2024-01-01T00:00:00Z",
+      "role": "system_admin",
+      "designation": "System Administrator",
+      "respond_io_account_id": null,
+      "password_change_required": false,
+      "password_last_changed": "2024-01-01T00:00:00Z",
+      "failed_login_attempts": 0,
+      "account_locked_until": null,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "last_login_ip": null
+    }
+  },
+  {
+    "model": "authentication.user",
+    "pk": "22222222-2222-2222-2222-222222222222",
+    "fields": {
+      "password": "pbkdf2_sha256$600000$dummy$dummy",
+      "last_login": null,
+      "is_superuser": false,
+      "username": "manager1",
+      "first_name": "Sarah",
+      "last_name": "Johnson",
+      "email": "sarah.johnson@respondio.local",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2024-01-01T00:00:00Z",
+      "role": "manager",
+      "designation": "Sales Manager",
+      "respond_io_account_id": "mgr_001",
+      "password_change_required": true,
+      "password_last_changed": null,
+      "failed_login_attempts": 0,
+      "account_locked_until": null,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "last_login_ip": null
+    }
+  },
+  {
+    "model": "authentication.user",
+    "pk": "33333333-3333-3333-3333-333333333333",
+    "fields": {
+      "password": "pbkdf2_sha256$600000$dummy$dummy",
+      "last_login": null,
+      "is_superuser": false,
+      "username": "salesperson1",
+      "first_name": "Michael",
+      "last_name": "Chen",
+      "email": "michael.chen@respondio.local",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2024-01-01T00:00:00Z",
+      "role": "basic_user",
+      "designation": "Sales Representative",
+      "respond_io_account_id": "sales_001",
+      "password_change_required": true,
+      "password_last_changed": null,
+      "failed_login_attempts": 0,
+      "account_locked_until": null,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "last_login_ip": null
+    }
+  },
+  {
+    "model": "authentication.user",
+    "pk": "44444444-4444-4444-4444-444444444444",
+    "fields": {
+      "password": "pbkdf2_sha256$600000$dummy$dummy",
+      "last_login": null,
+      "is_superuser": false,
+      "username": "salesperson2",
+      "first_name": "Emily",
+      "last_name": "Rodriguez",
+      "email": "emily.rodriguez@respondio.local",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2024-01-01T00:00:00Z",
+      "role": "basic_user",
+      "designation": "Senior Sales Representative",
+      "respond_io_account_id": "sales_002",
+      "password_change_required": true,
+      "password_last_changed": null,
+      "failed_login_attempts": 0,
+      "account_locked_until": null,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "last_login_ip": null
+    }
+  },
+  {
+    "model": "customers.customer",
+    "pk": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "fields": {
+      "phone_number": "+1234567890",
+      "name": "John Smith",
+      "status": "assigned",
+      "assigned_user": "33333333-3333-3333-3333-333333333333",
+      "respond_io_contact_id": "contact_001",
+      "email": "john.smith@example.com",
+      "language": "en",
+      "country_code": "US",
+      "profile_picture_url": "",
+      "first_contact_date": "2024-01-15T10:00:00Z",
+      "last_message_date": "2024-01-20T14:30:00Z",
+      "created_at": "2024-01-15T10:00:00Z",
+      "updated_at": "2024-01-20T14:30:00Z",
+      "assignment_history": [
+        {
+          "assigned_to": "33333333-3333-3333-3333-333333333333",
+          "assigned_by": "22222222-2222-2222-2222-222222222222",
+          "assigned_at": "2024-01-15T10:00:00Z",
+          "previous_assignee": null
+        }
+      ]
+    }
+  },
+  {
+    "model": "customers.customer",
+    "pk": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    "fields": {
+      "phone_number": "+1987654321",
+      "name": "Maria Garcia",
+      "status": "assigned",
+      "assigned_user": "44444444-4444-4444-4444-444444444444",
+      "respond_io_contact_id": "contact_002",
+      "email": "maria.garcia@example.com",
+      "language": "es",
+      "country_code": "MX",
+      "profile_picture_url": "",
+      "first_contact_date": "2024-01-16T09:15:00Z",
+      "last_message_date": "2024-01-21T11:45:00Z",
+      "created_at": "2024-01-16T09:15:00Z",
+      "updated_at": "2024-01-21T11:45:00Z",
+      "assignment_history": [
+        {
+          "assigned_to": "44444444-4444-4444-4444-444444444444",
+          "assigned_by": "22222222-2222-2222-2222-222222222222",
+          "assigned_at": "2024-01-16T09:15:00Z",
+          "previous_assignee": null
+        }
+      ]
+    }
+  },
+  {
+    "model": "customers.customer",
+    "pk": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+    "fields": {
+      "phone_number": "+441234567890",
+      "name": "David Wilson",
+      "status": "unassigned",
+      "assigned_user": null,
+      "respond_io_contact_id": "contact_003",
+      "email": "david.wilson@example.co.uk",
+      "language": "en",
+      "country_code": "GB",
+      "profile_picture_url": "",
+      "first_contact_date": "2024-01-18T16:20:00Z",
+      "last_message_date": "2024-01-19T09:10:00Z",
+      "created_at": "2024-01-18T16:20:00Z",
+      "updated_at": "2024-01-19T09:10:00Z",
+      "assignment_history": []
+    }
+  },
+  {
+    "model": "customers.conversation",
+    "pk": "dddddddd-dddd-dddd-dddd-dddddddddddd",
+    "fields": {
+      "customer": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "assigned_user": "33333333-3333-3333-3333-333333333333",
+      "status": "active",
+      "respond_io_conversation_id": "conv_001",
+      "subject": "Product Inquiry",
+      "priority": "normal",
+      "created_at": "2024-01-15T10:00:00Z",
+      "updated_at": "2024-01-20T14:30:00Z",
+      "last_message_at": "2024-01-20T14:30:00Z",
+      "closed_at": null,
+      "closed_by": null,
+      "message_count": 5,
+      "internal_comment_count": 2
+    }
+  },
+  {
+    "model": "customers.conversation",
+    "pk": "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+    "fields": {
+      "customer": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      "assigned_user": "44444444-4444-4444-4444-444444444444",
+      "status": "active",
+      "respond_io_conversation_id": "conv_002",
+      "subject": "Support Request",
+      "priority": "high",
+      "created_at": "2024-01-16T09:15:00Z",
+      "updated_at": "2024-01-21T11:45:00Z",
+      "last_message_at": "2024-01-21T11:45:00Z",
+      "closed_at": null,
+      "closed_by": null,
+      "message_count": 8,
+      "internal_comment_count": 1
+    }
+  },
+  {
+    "model": "customers.conversation",
+    "pk": "ffffffff-ffff-ffff-ffff-ffffffffffff",
+    "fields": {
+      "customer": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+      "assigned_user": null,
+      "status": "active",
+      "respond_io_conversation_id": "conv_003",
+      "subject": "",
+      "priority": "normal",
+      "created_at": "2024-01-18T16:20:00Z",
+      "updated_at": "2024-01-19T09:10:00Z",
+      "last_message_at": "2024-01-19T09:10:00Z",
+      "closed_at": null,
+      "closed_by": null,
+      "message_count": 2,
+      "internal_comment_count": 0
+    }
+  },
+  {
+    "model": "messaging.message",
+    "pk": "msg11111-1111-1111-1111-111111111111",
+    "fields": {
+      "conversation": "dddddddd-dddd-dddd-dddd-dddddddddddd",
+      "message_type": "text",
+      "content": "Hi, I'm interested in your premium software package. Can you tell me more about the features?",
+      "sender_type": "customer",
+      "sender_user": null,
+      "sender_customer": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "status": "read",
+      "read_by_user": true,
+      "read_at": "2024-01-15T10:05:00Z",
+      "respond_io_message_id": "msg_001",
+      "reply_to": null,
+      "forwarded_from": null,
+      "media_url": "",
+      "thumbnail_url": "",
+      "latitude": null,
+      "longitude": null,
+      "location_name": "",
+      "contact_name": "",
+      "contact_phone": "",
+      "created_at": "2024-01-15T10:00:00Z",
+      "updated_at": "2024-01-15T10:05:00Z",
+      "sent_at": "2024-01-15T10:00:00Z",
+      "edited_at": null,
+      "edit_count": 0
+    }
+  },
+  {
+    "model": "messaging.message",
+    "pk": "msg22222-2222-2222-2222-222222222222",
+    "fields": {
+      "conversation": "dddddddd-dddd-dddd-dddd-dddddddddddd",
+      "message_type": "text",
+      "content": "Hello John! Thanks for your interest. Our premium package includes advanced analytics, custom integrations, and 24/7 support. Would you like me to schedule a demo?",
+      "sender_type": "user",
+      "sender_user": "33333333-3333-3333-3333-333333333333",
+      "sender_customer": null,
+      "status": "delivered",
+      "read_by_user": false,
+      "read_at": null,
+      "respond_io_message_id": "msg_002",
+      "reply_to": "msg11111-1111-1111-1111-111111111111",
+      "forwarded_from": null,
+      "media_url": "",
+      "thumbnail_url": "",
+      "latitude": null,
+      "longitude": null,
+      "location_name": "",
+      "contact_name": "",
+      "contact_phone": "",
+      "created_at": "2024-01-15T10:10:00Z",
+      "updated_at": "2024-01-15T10:10:00Z",
+      "sent_at": "2024-01-15T10:10:00Z",
+      "edited_at": null,
+      "edit_count": 0
+    }
+  },
+  {
+    "model": "messaging.internalcomment",
+    "pk": "cmt11111-1111-1111-1111-111111111111",
+    "fields": {
+      "conversation": "dddddddd-dddd-dddd-dddd-dddddddddddd",
+      "author": "33333333-3333-3333-3333-333333333333",
+      "content": "This customer seems very interested. High potential for conversion. @sarah.johnson should review the pricing options.",
+      "priority": "normal",
+      "reply_to": null,
+      "is_private": false,
+      "notify_assigned_user": true,
+      "notify_managers": true,
+      "created_at": "2024-01-15T10:15:00Z",
+      "updated_at": "2024-01-15T10:15:00Z",
+      "edited_at": null
+    }
+  },
+  {
+    "model": "messaging.commentmention",
+    "pk": "mnt11111-1111-1111-1111-111111111111",
+    "fields": {
+      "comment": "cmt11111-1111-1111-1111-111111111111",
+      "mentioned_user": "22222222-2222-2222-2222-222222222222",
+      "mentioned_by": "33333333-3333-3333-3333-333333333333",
+      "position_start": 85,
+      "position_end": 99,
+      "notification_sent": true,
+      "acknowledged": false,
+      "acknowledged_at": null,
+      "created_at": "2024-01-15T10:15:00Z"
+    }
+  }
+] 
